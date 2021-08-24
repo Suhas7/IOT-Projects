@@ -20,31 +20,10 @@ bool active;
 int state;
 bool buttState=false;
 
-BLYNK_WRITE(V1){
-  active = true;
-  setState(param.asInt());
-}
-
-void setState(int newState){
-  if(state<newState){
-    digitalWrite(15, HIGH);
-    digitalWrite(14, LOW);
-    digitalWrite(32, HIGH);
-  }else if(state>newState){
-    digitalWrite(15, HIGH);
-    digitalWrite(14, HIGH);
-    digitalWrite(32, LOW);
-  }
-  else{return;}
-  delay(3350*abs(state-newState));
-  digitalWrite(14, LOW);
-  digitalWrite(32, LOW);
-  digitalWrite(15, LOW);
-  state=newState;
-}
 struct AirConditioner : Service::Fan{
   SpanCharacteristic *state;
   SpanCharacteristic *state2;
+  SpanCharacteristic *temp;
   AirConditioner() : Service::Fan(){       // constructor() method for TableLamp defined with one parameter.  Note we also call the constructor() method for the LightBulb Service.
     state=new Characteristic::Active();
     state2=(new Characteristic::RotationSpeed(0))->setRange(0,2,1);
@@ -54,14 +33,44 @@ struct AirConditioner : Service::Fan{
     digitalWrite(15, LOW);   
   }
   boolean update(){                          // update() method
-    Serial.println(state->getNewVal());
-    setState(2*(state->getNewVal()));
+    Serial.println(state2->getNewVal());
+    setState(state2->getNewVal());
     return(true);
   }
+  void setState(int newState){
+    if((state2->getVal())<newState){
+        digitalWrite(15, HIGH);
+        digitalWrite(14, LOW);
+        digitalWrite(32, HIGH);
+    }else if((state2->getVal())>newState){
+        digitalWrite(15, HIGH);
+        digitalWrite(14, HIGH);
+        digitalWrite(32, LOW);
+      }
+      else{return;}
+    delay(3350*abs((state2->getVal())-newState));
+      digitalWrite(14, LOW);
+      digitalWrite(32, LOW);
+      digitalWrite(15, LOW);
+    state2->setVal(newState);
+  }
+  boolean manualStateUpdate(int x){
+    state->setVal(x!=0);
+    setState(x);
+    update();
+  }
+  int getState(){
+    return state2->getVal();  
+  }
+  int getThresholdTemp(){
+    return temp->getVal();
+  }
 };
+
+AirConditioner* AC;
 void setup() {
   Serial.begin(115200);
-  homeSpan.begin();
+  homeSpan.begin(Category::AirConditioners,"Air Conditioner");homeSpan.enableOTA();
   Blynk.begin(auth, ssid, pass);
   while (!Blynk.connected()) {
     delay(500);
@@ -82,19 +91,24 @@ void setup() {
       new Characteristic::Identify();                 // Provides a hook that allows a HomeKit Client to identify the device
     new Service::HAPProtocolInformation();          // HAP requires every Accessory (except those in a bridge) to implement a Protcol Information Service  
       new Characteristic::Version("1.1.0");           // Set the Version Characteristic to "1.1.0," which is required by HAP
-  new AirConditioner();
+  AC=new AirConditioner();
 }
 
 void loop() { 
   Blynk.run();
-  //Serial.println("Button is reading");
   if(!buttState && digitalRead(27)){
-    setState((state==0)?2:0);
+    AC->manualStateUpdate((AC->getState()==0)?2:0);
   }
   buttState = (bool) digitalRead(27);
   float temp = dht.readTemperature(true);
+  
   if(temp<71){
-      setState(0);
+      AC->manualStateUpdate(0);
   }
   homeSpan.poll();
+}
+
+BLYNK_WRITE(V1){
+  active = true;
+  AC->manualStateUpdate(param.asInt());
 }
