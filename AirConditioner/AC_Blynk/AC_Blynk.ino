@@ -4,10 +4,11 @@
 #include "DHT.h"
 #include <BlynkSimpleEsp32.h>
 #include "config.h"
+#include "HomeSpan.h"
 
 char auth[] = BLYNK_KEY;
 char ssid[] = WIFI_NAME;
-char pass[] = WIFI_PASS
+char pass[] = WIFI_PASS;
 
 WidgetTerminal terminal(V1);
 
@@ -21,15 +22,10 @@ bool buttState=false;
 
 BLYNK_WRITE(V1){
   active = true;
-  Serial.println("api req"):
   setState(param.asInt());
 }
 
 void setState(int newState){
-  Serial.print("old state is ");
-  Serial.print(state);
-  Serial.print(" and new state is ");
-  Serial.println(newState);
   if(state<newState){
     digitalWrite(15, HIGH);
     digitalWrite(14, LOW);
@@ -44,11 +40,28 @@ void setState(int newState){
   digitalWrite(14, LOW);
   digitalWrite(32, LOW);
   digitalWrite(15, LOW);
-  state=newState; 
+  state=newState;
 }
-
+struct AirConditioner : Service::Fan{
+  SpanCharacteristic *state;
+  SpanCharacteristic *state2;
+  AirConditioner() : Service::Fan(){       // constructor() method for TableLamp defined with one parameter.  Note we also call the constructor() method for the LightBulb Service.
+    state=new Characteristic::Active();
+    state2=(new Characteristic::RotationSpeed(0))->setRange(0,2,1);
+    pinMode(14, OUTPUT);
+    pinMode(32, OUTPUT);
+    pinMode(15, OUTPUT);
+    digitalWrite(15, LOW);   
+  }
+  boolean update(){                          // update() method
+    Serial.println(state->getNewVal());
+    setState(2*(state->getNewVal()));
+    return(true);
+  }
+};
 void setup() {
   Serial.begin(115200);
+  homeSpan.begin();
   Blynk.begin(auth, ssid, pass);
   while (!Blynk.connected()) {
     delay(500);
@@ -59,9 +72,17 @@ void setup() {
   pinMode(15, OUTPUT);
   digitalWrite(15, LOW);
   active=true;
-//  Blynk.syncVirtual(V1);
-//  esp_sleep_enable_timer_wakeup(10e6);
-//  esp_deep_sleep_start();
+  new SpanAccessory();           // Table Lamp Accessory
+    new Service::AccessoryInformation();            // HAP requires every Accessory to implement an AccessoryInformation Service, with 6 *required* Characteristics
+      new Characteristic::Name("My Air Conditioner");      // Name of the Accessory, which shows up on the HomeKit "tiles", and should be unique across Accessories                                                    
+      new Characteristic::Manufacturer("Suhas Raja");   // Manufacturer of the Accessory (arbitrary text string, and can be the same for every Accessory)
+      new Characteristic::SerialNumber("123-ABC");    // Serial Number of the Accessory (arbitrary text string, and can be the same for every Accessory)
+      new Characteristic::Model("AC");     // Model of the Accessory (arbitrary text string, and can be the same for every Accessory)
+      new Characteristic::FirmwareRevision("0.1");    // Firmware of the Accessory (arbitrary text string, and can be the same for every Accessory)  
+      new Characteristic::Identify();                 // Provides a hook that allows a HomeKit Client to identify the device
+    new Service::HAPProtocolInformation();          // HAP requires every Accessory (except those in a bridge) to implement a Protcol Information Service  
+      new Characteristic::Version("1.1.0");           // Set the Version Characteristic to "1.1.0," which is required by HAP
+  new AirConditioner();
 }
 
 void loop() { 
@@ -72,8 +93,8 @@ void loop() {
   }
   buttState = (bool) digitalRead(27);
   float temp = dht.readTemperature(true);
-  if(temp<70){
+  if(temp<71){
       setState(0);
   }
-//  Serial.println(temp);
+  homeSpan.poll();
 }
