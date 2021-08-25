@@ -16,8 +16,6 @@ WidgetTerminal terminal(V1);
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 int cycle=0;
-bool active;
-int state;
 bool buttState=false;
 
 struct DEV_TempSensor : Service::TemperatureSensor {     // A standalone Temperature sensor
@@ -28,6 +26,9 @@ struct DEV_TempSensor : Service::TemperatureSensor {     // A standalone Tempera
     temp->setVal(dht.readTemperature(true));
     Serial.print("Configuring Temperature Sensor");           // initialization message
     Serial.print("\n");
+  }
+  void loop(){
+    if(temp->timeVal()>5000) temp->setVal(dht.readTemperature());
   }
 };
 
@@ -127,6 +128,5 @@ void loop() {
 }
 
 BLYNK_WRITE(V1){
-  active = true;
   AC->manualStateUpdate(param.asInt());
 }
