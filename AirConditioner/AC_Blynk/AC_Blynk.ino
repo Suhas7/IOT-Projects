@@ -21,49 +21,49 @@ int state;
 bool buttState=false;
 
 struct AirConditioner : Service::Fan{
-  SpanCharacteristic *state;
-  SpanCharacteristic *state2;
-  SpanCharacteristic *temp;
+  SpanCharacteristic *active;
+  SpanCharacteristic *level;
   AirConditioner() : Service::Fan(){       // constructor() method for TableLamp defined with one parameter.  Note we also call the constructor() method for the LightBulb Service.
-    state=new Characteristic::Active();
-    state2=(new Characteristic::RotationSpeed(0))->setRange(0,2,1);
+    active=new Characteristic::Active();
+    level=(new Characteristic::RotationSpeed(0))->setRange(0,2,1);
     pinMode(14, OUTPUT);
     pinMode(32, OUTPUT);
     pinMode(15, OUTPUT);
     digitalWrite(15, LOW);   
   }
   boolean update(){                          // update() method
-    Serial.println(state2->getNewVal());
-    setState(state2->getNewVal());
+    Serial.println(level->getNewVal());
+    if(active->getNewVal()) setState(level->getNewVal());
+    else setState(0);
     return(true);
   }
   void setState(int newState){
-    if((state2->getVal())<newState){
+    if((level->getVal())<newState){
         digitalWrite(15, HIGH);
         digitalWrite(14, LOW);
         digitalWrite(32, HIGH);
-    }else if((state2->getVal())>newState){
+    }else if((level->getVal())>newState){
         digitalWrite(15, HIGH);
         digitalWrite(14, HIGH);
         digitalWrite(32, LOW);
       }
       else{return;}
-    delay(3350*abs((state2->getVal())-newState));
+    delay(3350*abs((level->getVal())-newState));
       digitalWrite(14, LOW);
       digitalWrite(32, LOW);
       digitalWrite(15, LOW);
-    state2->setVal(newState);
+    level->setVal(newState);
   }
   boolean manualStateUpdate(int x){
-    state->setVal(x!=0);
+    active->setVal(x!=0);
     setState(x);
     update();
   }
   int getState(){
-    return state2->getVal();  
+    return level->getVal();  
   }
   int getThresholdTemp(){
-    return temp->getVal();
+    //return temp->getVal();
   }
 };
 
