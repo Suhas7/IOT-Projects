@@ -20,6 +20,18 @@ bool active;
 int state;
 bool buttState=false;
 
+struct DEV_TempSensor : Service::TemperatureSensor {     // A standalone Temperature sensor
+  SpanCharacteristic *temp;                         // reference to the Current Temperature Characteristic
+  DEV_TempSensor() : Service::TemperatureSensor(){       // constructor() method
+    temp=new Characteristic::CurrentTemperature(-10.0);        // instantiate the Current Temperature Characteristic
+    temp->setRange(-50,110);                                  // expand the range from the HAP default of 0-100 to -50 to 100 to allow for negative temperatures
+    temp->setVal(dht.readTemperature(true));
+    Serial.print("Configuring Temperature Sensor");           // initialization message
+    Serial.print("\n");
+  }
+};
+
+DEV_TempSensor* TS;
 struct AirConditioner : Service::Fan{
   SpanCharacteristic *active;
   SpanCharacteristic *level;
@@ -70,6 +82,7 @@ struct AirConditioner : Service::Fan{
 AirConditioner* AC;
 void setup() {
   Serial.begin(115200);
+  dht.begin();
   homeSpan.begin(Category::AirConditioners,"Air Conditioner");homeSpan.enableOTA();
   Blynk.begin(auth, ssid, pass);
   while (!Blynk.connected()) {
@@ -80,7 +93,17 @@ void setup() {
   pinMode(32, OUTPUT);
   pinMode(15, OUTPUT);
   digitalWrite(15, LOW);
-  active=true;
+  new SpanAccessory();                  
+    new Service::AccessoryInformation();            // HAP requires every Accessory to implement an AccessoryInformation Service, with 6 *required* Characteristics
+      new Characteristic::Name("Temp Sensor");                   // create all the required Characteristics with values set based on above arguments
+      new Characteristic::Manufacturer("HomeSpan");
+      new Characteristic::SerialNumber("123-ABD");    
+      new Characteristic::Model("Sensor");
+      new Characteristic::FirmwareRevision("0.1");
+      new Characteristic::Identify();
+    new Service::HAPProtocolInformation();          // HAP requires every Accessory (except those in a bridge) to implement a Protcol Information Service  
+    new Characteristic::Version("1.1.0");           // Set the Version Characteristic to "1.1.0," which is required by HAP
+    TS=new DEV_TempSensor();
   new SpanAccessory();           // Table Lamp Accessory
     new Service::AccessoryInformation();            // HAP requires every Accessory to implement an AccessoryInformation Service, with 6 *required* Characteristics
       new Characteristic::Name("My Air Conditioner");      // Name of the Accessory, which shows up on the HomeKit "tiles", and should be unique across Accessories                                                    
@@ -94,17 +117,12 @@ void setup() {
   AC=new AirConditioner();
 }
 
-void loop() { 
+void loop() {
   Blynk.run();
   if(!buttState && digitalRead(27)){
     AC->manualStateUpdate((AC->getState()==0)?2:0);
   }
   buttState = (bool) digitalRead(27);
-  float temp = dht.readTemperature(true);
-  
-  if(temp<71){
-      AC->manualStateUpdate(0);
-  }
   homeSpan.poll();
 }
 
