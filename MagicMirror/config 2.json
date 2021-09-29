@@ -1,0 +1,45 @@
+{
+    "bridge": {
+        "name": "Homebridge B89C",
+        "username": "0E:7C:93:F2:B8:9C",
+        "port": 51503,
+        "pin": "913-93-710",
+        "bind": [
+            "wlan0"
+        ],
+        "advertiser": "ciao"
+    },
+    "accessories": [],
+    "platforms": [
+        {
+            "name": "Config",
+            "port": 8581,
+            "platform": "config"
+        },
+        {
+            "name": "TplinkSmarthome",
+            "addCustomCharacteristics": true,
+            "deviceTypes": [
+                "plug",
+                "bulb"
+            ],
+            "platform": "TplinkSmarthome"
+        },
+        {
+            "platform": "WizSmarthome",
+            "name": "WizSmarthome"
+        },
+        {
+            "platform": "cmdSwitch2",
+            "name": "cmdSwitch2",
+            "switches": [
+                {
+                    "name": "Mirror",
+                    "on_cmd": "curl 192.168.0.207:5000/on",
+                    "off_cmd": "curl 192.168.0.207:5000/off"
+                }
+            ]
+        }
+    ],
+    "disabledPlugins": []
+}

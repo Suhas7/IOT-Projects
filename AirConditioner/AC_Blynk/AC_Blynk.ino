@@ -29,7 +29,7 @@ struct DEV_TempSensor : Service::TemperatureSensor {     // A standalone Tempera
   }
   void loop(){
     if(temp->timeVal()>15000){
-      temp->setVal(dht.readTemperature());
+      temp->setVal(dht.readTemperature()-4);
       Serial.print("Current temp: ");
       Serial.println(temp->getVal());
     }
